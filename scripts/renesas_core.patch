@@ -1,0 +1,119 @@
+--- a/cores/arduino/usb/USB.cpp
++++ b/cores/arduino/usb/USB.cpp
+@@ -72,6 +72,13 @@
+ #define USBD_STR_CDC (0x04)
+ #define USBD_STR_DFU_RT (0x05)
+ 
++// XR4 (ArduinoX360-tinyusb): weak hooks that let a library contribute a
++// custom vendor-class interface and/or override VID/PID. Implemented strongly
++// by the ArduinoX360-tinyusb Renesas backend; absent otherwise.
++extern "C" uint8_t const* __USBGetCustomInterfaceDescriptor(
++    uint8_t itfnum, size_t* len, uint8_t* num_interfaces) __attribute__((weak));
++extern "C" bool __USBGetVidPid(uint16_t* vid, uint16_t* pid) __attribute__((weak));
++
+ const uint8_t *tud_descriptor_device_cb(void) {
+     static tusb_desc_device_t usbd_desc_device = {
+         .bLength = sizeof(tusb_desc_device_t),
+@@ -94,6 +101,17 @@
+     usbd_desc_device.bDeviceClass = 0;
+     usbd_desc_device.bDeviceSubClass = 0;
+     usbd_desc_device.bDeviceProtocol = 0;
++
++    // XR4: lazy VID/PID override - this descriptor is rebuilt on every call,
++    // so values set later from setup() are still honored at enumeration time.
++    if (__USBGetVidPid) {
++        uint16_t vid = 0;
++        uint16_t pid = 0;
++        if (__USBGetVidPid(&vid, &pid)) {
++            usbd_desc_device.idVendor = vid;
++            usbd_desc_device.idProduct = pid;
++        }
++    }
+     return (const uint8_t *)&usbd_desc_device;
+ }
+ 
+@@ -178,14 +196,27 @@
+ #else
+         uint8_t msd_desc[0] = {};
+ #endif
+-        
++
++        // XR4: optional library-provided custom vendor interface(s)
++        bool install_custom = false;
++        size_t custom_len = 0;
++        uint8_t custom_iface_count = 0;
++        uint8_t const* custom_desc = nullptr;
++        if (__USBGetCustomInterfaceDescriptor) {
++            custom_desc = __USBGetCustomInterfaceDescriptor(
++                interface_count, &custom_len, &custom_iface_count);
++            install_custom = custom_desc && custom_len > 0;
++            interface_count += custom_iface_count;
++        }
++
+         // Create configuration descriptor
+         int usbd_desc_len =
+             TUD_CONFIG_DESC_LEN
+             + (install_CDC ? sizeof(cdc_desc) : 0)
+             + (install_DFU ? sizeof(dfu_desc) : 0)
+             + (install_HID ? sizeof(hid_desc) : 0)
+-            + (install_MSD ? sizeof(msd_desc) : 0);
++            + (install_MSD ? sizeof(msd_desc) : 0)
++            + (install_custom ? custom_len : 0);
+         uint8_t tud_cfg_desc[TUD_CONFIG_DESC_LEN] = {
+             // Config number, interface count, string index, total length, attribute, power in mA
+             TUD_CONFIG_DESCRIPTOR(1, interface_count, USBD_STR_0, usbd_desc_len, TUSB_DESC_CONFIG_ATT_SELF_POWERED, 500)
+@@ -214,6 +245,10 @@
+                 memcpy(ptr, msd_desc, sizeof(msd_desc));
+                 ptr += sizeof(msd_desc);
+             }
++            if (install_custom && custom_desc) {
++                memcpy(ptr, custom_desc, custom_len);
++                ptr += custom_len;
++            }
+         }
+     }
+ }
+--- a/cores/arduino/tinyusb/class/vendor/vendor_device.c
++++ b/cores/arduino/tinyusb/class/vendor/vendor_device.c
+@@ -232,8 +232,13 @@
+       p_desc = tu_desc_next(p_desc);
+     }
+ 
+-    // Open endpoint pair with usbd helper
+-    TU_ASSERT(usbd_open_edpt_pair(rhport, p_desc, desc_itf->bNumEndpoints, TUSB_XFER_BULK, &p_vendor->ep_out, &p_vendor->ep_in), 0);
++    // Open endpoint pair with usbd helper. XR4: use the transfer type the
++    // endpoint descriptor actually declares. The stock code forces BULK here,
++    // which rejects the INTERRUPT endpoints of Xbox 360 (XInput) interfaces
++    // and makes SET_CONFIGURATION stall.
++    uint8_t const ep_xfer_type =
++        ((tusb_desc_endpoint_t const *) p_desc)->bmAttributes.xfer;
++    TU_ASSERT(usbd_open_edpt_pair(rhport, p_desc, desc_itf->bNumEndpoints, ep_xfer_type, &p_vendor->ep_out, &p_vendor->ep_in), 0);
+ 
+     p_desc += desc_itf->bNumEndpoints*sizeof(tusb_desc_endpoint_t);
+ 
+--- a/variants/NANOR4/tusb_config.h
++++ b/variants/NANOR4/tusb_config.h
+@@ -79,7 +79,9 @@
+ #define CFG_TUD_MSC              0
+ #define CFG_TUD_HID              1
+ #define CFG_TUD_MIDI             0
+-#define CFG_TUD_VENDOR           0
++#define CFG_TUD_VENDOR_RX_BUFSIZE  64
++#define CFG_TUD_VENDOR_TX_BUFSIZE  64
++#define CFG_TUD_VENDOR           1
+ #define CFG_TUD_DFU_RUNTIME      1
+ 
+ // CDC FIFO size of TX and RX
+--- a/variants/MINIMA/tusb_config.h
++++ b/variants/MINIMA/tusb_config.h
+@@ -79,7 +79,9 @@
+ #define CFG_TUD_MSC              0
+ #define CFG_TUD_HID              1
+ #define CFG_TUD_MIDI             0
+-#define CFG_TUD_VENDOR           0
++#define CFG_TUD_VENDOR_RX_BUFSIZE  64
++#define CFG_TUD_VENDOR_TX_BUFSIZE  64
++#define CFG_TUD_VENDOR           1
+ #define CFG_TUD_DFU_RUNTIME      1
+ 
+ // CDC FIFO size of TX and RX

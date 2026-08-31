@@ -1,0 +1,67 @@
+#######################################
+# Syntax Coloring Map For ArduinoX360-tinyusb
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+ArduinoX360	KEYWORD1
+ArduinoX360Class	KEYWORD1
+ESP32XInput	KEYWORD1
+ESP32XInputClass	KEYWORD1
+PIPICXInput	KEYWORD1
+PIPICXInputClass	KEYWORD1
+XInputReport	KEYWORD1
+Button	KEYWORD1
+RumbleCallback	KEYWORD1
+LedCallback	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+begin	KEYWORD2
+isConnected	KEYWORD2
+ready	KEYWORD2
+press	KEYWORD2
+release	KEYWORD2
+setButton	KEYWORD2
+getButton	KEYWORD2
+setLeftTrigger	KEYWORD2
+setRightTrigger	KEYWORD2
+setStickLeft	KEYWORD2
+setStickRight	KEYWORD2
+setHat	KEYWORD2
+setDpad	KEYWORD2
+getHat	KEYWORD2
+onRumble	KEYWORD2
+onLed	KEYWORD2
+setPollInterval	KEYWORD2
+update	KEYWORD2
+send	KEYWORD2
+releaseAll	KEYWORD2
+pollRumble	KEYWORD2
+getLastRumbleLeft	KEYWORD2
+getLastRumbleRight	KEYWORD2
+getLastLedIndex	KEYWORD2
+hasReceivedOutput	KEYWORD2
+getReport	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+DPAD_UP	LITERAL1
+DPAD_DOWN	LITERAL1
+DPAD_LEFT	LITERAL1
+DPAD_RIGHT	LITERAL1
+START	LITERAL1
+BACK	LITERAL1
+LEFT_THUMB	LITERAL1
+RIGHT_THUMB	LITERAL1
+LEFT_SHOULDER	LITERAL1
+RIGHT_SHOULDER	LITERAL1
+XBOX	LITERAL1
+A	LITERAL1
+B	LITERAL1
+X	LITERAL1
+Y	LITERAL1
+BUTTON_COUNT	LITERAL1
